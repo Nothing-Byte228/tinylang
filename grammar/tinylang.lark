@@ -1,0 +1,90 @@
+?start: block
+
+?block: stmt*
+
+# Каждая инструкция может опционально завершаться точкой с запятой
+?stmt: func_def [";"]
+     | var_assign [";"]
+     | return_stmt [";"]
+     | if_stmt [";"]
+     | while_stmt [";"]
+     | for_stmt [";"]
+     | use_stmt [";"]
+     | expr_stmt [";"]
+
+use_stmt: "use" STRING
+
+# Функции
+func_def: "function" NAME "(" [param_list] "):" "{" block "}"
+param_list: NAME ("," NAME)*
+return_stmt: "return" expr
+
+# Переменные и присваивание (Сюда добавили +=, -=, *=, /=, ++, --)
+?var_assign: NAME "=" expr         -> var_assign_op
+           | NAME "+=" expr        -> var_add_assign
+           | NAME "-=" expr        -> var_sub_assign
+           | NAME "*=" expr        -> var_mul_assign
+           | NAME "/=" expr        -> var_div_assign
+           | NAME "++"             -> var_inc
+           | NAME "--"             -> var_dec
+
+# Управляющие конструкции
+if_stmt: "if" "(" comp_expr ")" ":" "{" block "}" [ "else" ":" "{" block "}" ]
+while_stmt: "while" "(" comp_expr ")" ":" "{" block "}"
+for_stmt: "for" "(" var_assign ";" comp_expr ";" var_assign ")" ":" "{" block "}"
+
+expr_stmt: expr
+
+# Операторы сравнения
+?comp_expr: expr "==" expr  -> eq
+          | expr "!=" expr  -> ne
+          | expr ">=" expr  -> ge
+          | expr "<=" expr  -> le
+          | expr ">" expr   -> gt
+          | expr "<" expr   -> lt
+          | expr
+
+# Математика и Выражения
+?expr: sum
+     | array
+
+?sum: product
+    | sum "+" product   -> add
+    | sum "-" product   -> sub
+
+# Заменили символы деления на токены слов DIV и MOD
+?product: atom
+        | product "*" atom -> mul
+        | product DIV atom -> div
+        | product MOD atom -> mod
+
+# Атомарные типы данных
+?atom: NUMBER           -> num
+     | STRING           -> str
+     | "true"           -> true
+     | "false"          -> false
+     | "null"           -> null
+     | NAME             -> var_call
+     | func_call
+     | "(" expr ")" [";"]
+
+# Массивы
+array: "[" [expr ("," expr)*] "]"
+
+# Вызов функций
+func_call: NAME "(" [arg_list] ")"
+arg_list: expr ("," expr)*
+
+# --- ТЕРМИНАЛЫ И ПРИОРИТЕТЫ ---
+DIV: "div"
+MOD: "mod"
+
+%import common.CNAME -> NAME
+%import common.INT -> NUMBER
+%import common.ESCAPED_STRING -> STRING
+%import common.WS
+
+# Комментарии снова через двойной слэш
+COMMENT: "//" /[^\n]*/
+%ignore WS
+%ignore COMMENT
